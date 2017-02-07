@@ -3,6 +3,7 @@ This repo holds scripts for performing a statistical match
 using CPS and SOI_PUF data
 
 Files should be run in the following order:
+
 1. `cpsmar.py`
 2. `cps_rets.py`
 3. `adj_filst.py`
