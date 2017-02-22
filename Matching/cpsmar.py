@@ -1,24 +1,26 @@
 """
 Read in raw CPS data file and structure to be used in future scripts
+Run time is approximately two hours
 """
 import pandas as pd
-import numpy as np
+from tqdm import tqdm
 
 
 def h_recs(rec):
     """
-    Process each household record in the raw CPS file and
+    Process a household record from the raw CPS file.
 
     Parameters
     ----------
-    rec: Record from CPS file
+    rec: String containing a CPS household record
 
     Returns
     -------
-    DataFrame with the variables
+    DataFrame with the final record
 
     """
-    record = pd.DataFrame()
+    record = dict()
+
     record['hrecord'] = [int(rec[0])]
     record['h_seq'] = [int(rec[1:6])]
     record['hhpos'] = [int(rec[6:8])]
@@ -150,22 +152,23 @@ def h_recs(rec):
     record['i_careval'] = [int(rec[398])]
     record['hpres_mort'] = [int(rec[399])]
 
-    return record
+    return pd.DataFrame(record)
+
 
 def f_recs(rec):
     """
-    Process each family record in the raw CPS file and
+    Process a family record from the raw CPS file.
 
     Parameters
     ----------
-    rec: Record from CPS file
+    rec: String containing a CPS family record
 
     Returns
     -------
-    DataFrame with the variables
+    DataFrame with the final record
 
     """
-    record = pd.DataFrame()
+    record = dict()
 
     record['frecord'] = [int(rec[0])]
     record['fh_seq'] = [int(rec[1:6])]
@@ -249,22 +252,23 @@ def f_recs(rec):
     record['fmed_val'] = [int(rec[291:298])]
     record['i_fhipval'] = [int(rec[298])]
 
-    return record
+    return pd.DataFrame(record)
+
 
 def p_recs(rec):
     """
-    Process each person record in the raw CPS file and
+    Process a person record from the raw CPS file and
 
     Parameters
     ----------
-    rec: Record from CPS file
+    rec: String containing a CPS person record
 
     Returns
     -------
-    DataFrame with the variables
+    DataFrame with the final record
 
     """
-    record = pd.DataFrame()
+    record = dict()
 
     record['precord'] = [int(rec[0])]
     record['ph_seq'] = [int(rec[1:6])]
@@ -765,8 +769,43 @@ def p_recs(rec):
     record['tpmed_val'] = [int(rec[1071])]
     record['tchsp_val'] = [int(rec[1072])]
 
-    return record
+    return pd.DataFrame(record)
+
+
+# Read in CPS file
 cps = [line.strip().split() for line in
        open('asec2014_pubuse_tax_fix_5x8.dat').readlines()]
-print h_recs(cps[0][0])
-recs_dict = {}
+
+# Create lists for each type of record
+h_list = list()
+f_list = list()
+p_list = list()
+
+# Iterate through CPS file to create a record from each line in the file
+print 'Creating Records'
+for rec in tqdm(cps, desc='Records Progress'):
+    # Call function associated with record type
+    rec_type = rec[0][0]
+    # Household record
+    if rec_type == '1':
+        h_list.append(h_recs(rec[0]))
+    # Family record
+    elif rec_type == '2':
+        f_list.append(f_recs(rec[0]))
+    # Person record
+    else:
+        p_list.append(p_recs(rec[0]))
+
+# Create three DataFrames for each type of record
+house = pd.concat(h_list)
+fam = pd.concat(f_list)
+ppl = pd.concat(p_list)
+
+# Merge records together for final data set
+print 'Merging Records'
+house_fam = pd.merge(house, fam, left_on='h_seq', right_on='fh_seq')
+cpsmar = pd.merge(house_fam, ppl, left_on=['h_seq', 'ffpos'],
+                  right_on=['ph_seq', 'a_famnum'])
+# Export data
+print 'Exporting Data'
+cpsmar.to_csv('cpsmar2014.csv', index=False)
