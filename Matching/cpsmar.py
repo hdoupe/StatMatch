@@ -2,6 +2,7 @@
 Read in raw CPS data file and structure to be used in future scripts
 Run time is approximately two hours
 """
+from collections import OrderedDict
 import pandas as pd
 from tqdm import tqdm
 
@@ -19,7 +20,7 @@ def h_recs(rec):
     DataFrame with the final record
 
     """
-    record = dict()
+    record = OrderedDict()
 
     record['hrecord'] = [int(rec[0])]
     record['h_seq'] = [int(rec[1:6])]
@@ -168,7 +169,7 @@ def f_recs(rec):
     DataFrame with the final record
 
     """
-    record = dict()
+    record = OrderedDict()
 
     record['frecord'] = [int(rec[0])]
     record['fh_seq'] = [int(rec[1:6])]
@@ -268,7 +269,7 @@ def p_recs(rec):
     DataFrame with the final record
 
     """
-    record = dict()
+    record = OrderedDict()
 
     record['precord'] = [int(rec[0])]
     record['ph_seq'] = [int(rec[1:6])]
@@ -776,36 +777,26 @@ def p_recs(rec):
 cps = [line.strip().split() for line in
        open('asec2014_pubuse_tax_fix_5x8.dat').readlines()]
 
-# Create lists for each type of record
-h_list = list()
-f_list = list()
-p_list = list()
-
-# Iterate through CPS file to create a record from each line in the file
+# Empty list to hold the completed records
+cps_list = list()
 print 'Creating Records'
-for rec in tqdm(cps, desc='Records Progress'):
-    # Call function associated with record type
-    rec_type = rec[0][0]
-    # Household record
-    if rec_type == '1':
-        h_list.append(h_recs(rec[0]))
-    # Family record
-    elif rec_type == '2':
-        f_list.append(f_recs(rec[0]))
-    # Person record
+for record in tqdm(cps):
+    # Find the type of record
+    rectype = record[0][0]
+    if rectype == '1':
+        # If it's a household, hold that record to concat to family records
+        house_rec = h_recs(record[0])
+    elif rectype == '2':
+        # If it's a family record, concat to household record and store
+        house_fam = pd.concat([house_rec, f_recs(record[0])], axis=1)
     else:
-        p_list.append(p_recs(rec[0]))
+        # If it's a person record concat to household and family record
+        final_rec = pd.concat([house_fam, p_recs(record[0])], axis=1)
+        # Append final record to the list of records
+        cps_list.append(final_rec)
 
-# Create three DataFrames for each type of record
-house = pd.concat(h_list)
-fam = pd.concat(f_list)
-ppl = pd.concat(p_list)
-
-# Merge records together for final data set
-print 'Merging Records'
-house_fam = pd.merge(house, fam, left_on='h_seq', right_on='fh_seq')
-cpsmar = pd.merge(house_fam, ppl, left_on=['h_seq', 'ffpos'],
-                  right_on=['ph_seq', 'a_famnum'])
-# Export data
+# Create the data set by combining all of the records
+cps_mar = pd.concat(cps_list)
+# Export the data
 print 'Exporting Data'
-cpsmar.to_csv('cpsmar2014.csv', index=False)
+cps_mar.to_csv('cpsmar2014.csv', index=False)
