@@ -1,5 +1,6 @@
 """
 Read in raw CPS data file and structure to be used in future scripts
+Input file: asec2014_pubuse_tax)fix_5x8.dat
 Run time is approximately two hours
 """
 from collections import OrderedDict
