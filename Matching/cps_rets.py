@@ -95,7 +95,7 @@ class Returns(object):
                         person['h_flag'] = False
                         # Tax unit spouse flag
                         person['s_flag'] = False
-                        # Tan unit dependent flag
+                        # Tax unit dependent flag
                         person['d_flag'] = False
                     # Loop through family again to process
                     for person in self.family:
@@ -168,7 +168,7 @@ class Returns(object):
         """
 
 
-
+# Temporary. In future, class will be initiated in earlier script.
 # Read in data
 cps_recs = pd.read_csv('cpsmar2014.csv')
 # Obtain the household sequence numbers
