@@ -202,9 +202,9 @@ class Returns(object):
         # marital status
         ms = record['a_maritl']
         if ms == 1 or ms == 2 or ms == 3:
-            type = 2
+            ms_type = 2
         else:
-            type = 1
+            ms_type = 1
         sp_ptr = record['a_spouse']
         relcode = record['a_exprrp']
         #ftype = record['ftype']
@@ -216,7 +216,7 @@ class Returns(object):
         depne = 0
         ages = np.nan
         wass = np.nan
-        if type == 1:
+        if ms_type == 1:
             js = 1
             ages = np.nan
             # Certain single & separated individuals living alone are allowed to file as head of household.
