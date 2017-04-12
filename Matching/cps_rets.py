@@ -6,6 +6,7 @@ Input file: cpsmar2014.csv
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
 
 class Returns(object):
@@ -81,7 +82,7 @@ class Returns(object):
             if row['oi_off'] == 20:
                 row['alm_val'] = row['oi_off']
 
-        for num in self.h_nums:
+        for num in tqdm(self.h_nums):
             try:
                 self.nunits = 0
                 del self.house_units[:]
@@ -209,7 +210,7 @@ class Returns(object):
         relcode = record['a_exprrp']
         #ftype = record['ftype']
         ageh = record['a_age']
-        if ageh > 65:
+        if ageh >= 65:
             agede = 1
         else:
             agede = 0
@@ -227,7 +228,7 @@ class Returns(object):
             js = 2
             if sp_ptr != 0:     
                 ages = self.household[sp_ptr - 1]['a_age']              
-                if ages > 65:
+                if ages >= 65:
                     agede += 1
                 wass = self.household[sp_ptr - 1]['wsal_val']
                 was += wass
@@ -657,10 +658,10 @@ class Returns(object):
                         related = 99
                     # In general, a person's income must be less than $2,500 to be eligible to be a dependent.
                     # But there are exceptions for children.
-                    if income < 2500:
+                    if income <= 2500:
                         test4 = 1
                     if (relcode == 5) or (related == -1):
-                        if age < 18 or (age < 23 and record['a_enrlw'] > 0):
+                        if age <= 18 or (age <= 23 and record['a_enrlw'] > 0):
                             test4 = 1
                     if totincx + income > 0:
                         if income / float(totincx + income) < 0.5:
@@ -769,15 +770,19 @@ class Returns(object):
             self.house_units[iy]['depne'] += (ixdeps +2)
             self.house_units[iy]['dep' + str(iydeps + 1)] = ix
             self.house_units[iy]['dep' + str(iydeps + 2)] = self.house_units[ix]['sp_ptr']
+            self.house_units[iy]['depage' + str(iydeps + 1)] = self.house_units[ix]['a_age']
+            self.house_units[iy]['depage' + str(iydeps + 2)] = self.house_units[ix]['ages']
             iybgin = iydeps + 2
         else:
-            self.house_units[iy]['dep' + str(iydeps + 1)] += (ixdeps + 1)
-            self.house_units[iy]['dep1'] = ix
+            self.house_units[iy]['depne'] += (ixdeps + 1)
+            self.house_units[iy]['dep' + str(iydeps + 1)] = ix
+            self.house_units[iy]['depage' + str(iydeps + 1)] = self.house_units[ix]['a_age']
             iybgin = iydeps + 1
         if ixdeps > 0:
             for ndeps in range(1,ixdeps + 1):
                 self.house_units[iy]['dep' + str(iybgin + ndeps) ] = self.house_units[ix]['dep' + str(ndeps)]
                 self.house_units[ix]['dep' + str(iybgin + ndeps)] = 0
+                self.house_units[iy]['depage' + str(iybgin + ndeps)] = self.house_units[ix]['depage' + str(ndeps)]
 
 
     def tax_units_search(self):
@@ -805,13 +810,13 @@ class Returns(object):
                 idxdepf = self.house_units[ix]['ifdept']
                 idxrelc = self.house_units[ix]['a_exprrp']
                 idxfamt = self.house_units[ix]['ftype']
-                if (ix != idxhigh) and (idxdepf != 1) and (highest > 0) and (idxjs != 2):
+                if (ix != idxhigh) and (idxdepf != 1) and (highest >= 0) and (idxjs != 2):
                     if (idxfamt == 1) or (idxfamt == 3) or (idxfamt == 5):
                         totincx = self.house_units[ix]['totincx']
-                        if totincx < 0:
+                        if totincx <= 0:
                             self.house_units[ix]['t_flag'] = False
                             self.convert(ix, idxhigh)
-                        if 3000 > totincx > 0:
+                        if 3000 >= totincx > 0:
                             self.convert(ix, idxhigh)
                     if idxrelc == 11:
                         self.house_units[ix]['t_flag'] = False
@@ -833,16 +838,16 @@ class Returns(object):
         # test1: wage test
         output['filst'] = 0
         if output['js'] == 1:
-            if output['was'] > self.wage1:
+            if output['was'] >= self.wage1:
                 output['filst'] = 1
         if output['js'] == 2:
             if output['depne'] > 0:
-                if output['was'] > self.wage2:
+                if output['was'] >= self.wage2:
                     output['filst'] = 1
-                if output['was'] > self.wage2nk:
+                if output['was'] >= self.wage2nk:
                     output['filst'] = 1
         if output['js'] == 3:
-            if output['was'] > self.wage3:
+            if output['was'] >= self.wage3:
                 output['filst'] = 1
 
         # test2: wage test
@@ -857,13 +862,13 @@ class Returns(object):
             if output['agede'] == 1:
                 amount = self.joint65one - self.depExempt * output['depne']
                 amount = self.joint65both - self.depExempt * output['depne']
-            if output['income'] > amount:
+            if output['income'] >= amount:
                 output['filst'] = 1
         if output['js'] == 3:
             amount = self.hoh
             if output['agede'] != 0:
                 amount = self.hoh65 - self.depExempt * output['depne']
-            if output['income'] > amount:
+            if output['income'] >= amount:
                 output['filst'] = 1
 
         # test3: dependent filers
@@ -912,7 +917,7 @@ class Returns(object):
                 dage = self.household[dindex]['a_age']
                 if drel == 8:
                     xxopar += 1
-                if (drel > 9) and (dage > 18):
+                if (drel >= 9) and (dage >= 18):
                     xxoodep += 1
                 if dage < 18:
                     xxocah += 1
