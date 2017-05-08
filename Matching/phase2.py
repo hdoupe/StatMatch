@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-SOI = pd.read_csv('soirets2009_ph1.csv',usecols=['cellid','soiseq','wt','factor','yhat'])
-CPS = pd.read_csv('cpsrets14_ph1.csv',usecols=['cellid','cpsseq','wt','factor','yhat'])
+SOI = pd.read_csv('soirets2009_ph1.csv',
+                  usecols=['cellid', 'soiseq', 'wt', 'factor', 'yhat'])
+CPS = pd.read_csv('cpsrets14_ph1.csv',
+                  usecols=['cellid', 'cpsseq', 'wt', 'factor', 'yhat'])
 
 CPS['wt_adj'] = CPS['wt'] * CPS['factor']
-
-
 
 cellid = np.unique(SOI['cellid'].values)
 
@@ -36,7 +36,7 @@ for id in tqdm(cellid):
         for record in soi:
             awt = record['wt']
             while awt > epsilon:
-                cwt = min(awt,bwt)
+                cwt = min(awt, bwt)
                 soiseq = record['soiseq']
                 cpsseq = cps[j]['cpsseq']
 
@@ -53,5 +53,5 @@ for id in tqdm(cellid):
                         bwt = cps[j]['wt_adj']
 
 
-match = pd.DataFrame({'soiseq': soi_list, 'cpsseq': cps_list,'cwt':cwt_list})
+match = pd.DataFrame({'soiseq': soi_list, 'cpsseq': cps_list, 'cwt': cwt_list})
 match.to_csv('match.csv', index=False)
