@@ -6,7 +6,6 @@ Output file: cpsrets14_ph1.csv, soirets2009_ph1.csv counts.csv
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-import statsmodels.formula.api as sm
 
 def partitioning(was, intst, bil, fil, js, depne, ifdept, agede, texint, dbe, sche, ssinc, pensions, alimony, ucagix):
     # begin partitioning phase
