@@ -774,30 +774,39 @@ def p_recs(rec):
     return pd.DataFrame(record)
 
 
-# Read in CPS file
-cps = [line.strip().split() for line in
-       open('asec2014_pubuse_tax_fix_5x8.dat').readlines()]
+def create_cps():
+    """
+    Function to start process of creating the CPS file
 
-# Empty list to hold the completed records
-cps_list = list()
-print 'Creating Records'
-for record in tqdm(cps):
-    # Find the type of record
-    rectype = record[0][0]
-    if rectype == '1':
-        # If it's a household, hold that record to concat to family records
-        house_rec = h_recs(record[0])
-    elif rectype == '2':
-        # If it's a family record, concat to household record and store
-        house_fam = pd.concat([house_rec, f_recs(record[0])], axis=1)
-    else:
-        # If it's a person record concat to household and family record
-        final_rec = pd.concat([house_fam, p_recs(record[0])], axis=1)
-        # Append final record to the list of records
-        cps_list.append(final_rec)
+    Returns
+    -------
+    CPS file as a pandas DF
+    """
+    # Read in CPS file
+    cps = [line.strip().split() for line in
+           open('asec2014_pubuse_tax_fix_5x8.dat').readlines()]
 
-# Create the data set by combining all of the records
-cps_mar = pd.concat(cps_list)
-# Export the data
-print 'Exporting Data'
-cps_mar.to_csv('cpsmar2014.csv', index=False)
+    # Empty list to hold the completed records
+    cps_list = list()
+    print 'Creating Records'
+    for record in tqdm(cps):
+        # Find the type of record
+        rectype = record[0][0]
+        if rectype == '1':
+            # If it's a household, hold that record to concat to family records
+            house_rec = h_recs(record[0])
+        elif rectype == '2':
+            # If it's a family record, concat to household record and store
+            house_fam = pd.concat([house_rec, f_recs(record[0])], axis=1)
+        else:
+            # If it's a person record concat to household and family record
+            final_rec = pd.concat([house_fam, p_recs(record[0])], axis=1)
+            # Append final record to the list of records
+            cps_list.append(final_rec)
+
+    # Create the data set by combining all of the records
+    cps_mar = pd.concat(cps_list)
+    # Export the data
+    print 'Exporting Data'
+    # cps_mar.to_csv('cpsmar2014.csv', index=False)
+    return cps_mar

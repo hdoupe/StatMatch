@@ -51,7 +51,7 @@ class Returns(object):
         self.tax_units = list()
 
         # Start the tax unit creation process
-        self.computation()
+        # self.computation()
 
     def computation(self):
         """
@@ -129,7 +129,8 @@ class Returns(object):
                     continue
                 self.tax_units.append(self.output(unit))
         output = pd.DataFrame(self.tax_units)
-        output.to_csv('CPSRETS2014.csv', index=False)
+        # output.to_csv('CPSRETS2014.csv', index=False)
+        return output
 
     def create(self, record):
         """
