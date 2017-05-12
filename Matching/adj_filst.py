@@ -24,6 +24,7 @@ cps_recs['z2'] = cps_recs['case2'].apply(lambda x: np.random.uniform(0, 1)
 selected = (cps_recs['z1'] <= 0.84) | (cps_recs['z2'] <= 0.54)
 cps_recs['filst'][selected] = 1
 cps_recs.drop(['case1', 'case2'], axis=1, inplace=True)
+cps_recs['cpsseq'] = cps_recs.index + 1
 
 filers = cps_recs.copy()[(cps_recs['filst'] == 1)]
 nonfilers = cps_recs.copy()[(cps_recs['filst'] == 0)]

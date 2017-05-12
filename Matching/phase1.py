@@ -119,7 +119,6 @@ SOI = pd.read_csv('soirets2009.csv')
 CPS.rename(columns={'rents': 'sche', 'ucomp': 'ucagix', 'socsec': 'ssinc'},
            inplace=True)
 CPS['texint'] = 0
-CPS['cpsseq'] = CPS.index + 1
 df_CPS = CPS.apply(lambda row: partitioning(row['was'], row['intst'],
                                             row['bil'], row['fil'], row['js'],
                                             row['depne'], row['ifdept'],
