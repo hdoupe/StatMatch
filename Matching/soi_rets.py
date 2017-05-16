@@ -74,5 +74,5 @@ def create_soi(SOI):
                        'wt', 'filer']
 
     SOI = SOI[columns_to_keep]
-    # SOI.to_csv('soirets2009.csv', index=False)
+    SOI.to_csv('soirets2009.csv', index=False)
     return SOI

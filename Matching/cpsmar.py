@@ -774,9 +774,14 @@ def p_recs(rec):
     return pd.DataFrame(record)
 
 
-def create_cps():
+def create_cps(raw_cps):
     """
     Function to start process of creating the CPS file
+
+    Parameters
+    ----------
+    raw_cps: String containing path to CPS file in DAT format as downloaded
+             from the NBER website
 
     Returns
     -------
@@ -784,7 +789,7 @@ def create_cps():
     """
     # Read in CPS file
     cps = [line.strip().split() for line in
-           open('asec2014_pubuse_tax_fix_5x8.dat').readlines()]
+           open(raw_cps).readlines()]
 
     # Empty list to hold the completed records
     cps_list = list()
@@ -808,5 +813,5 @@ def create_cps():
     cps_mar = pd.concat(cps_list)
     # Export the data
     print 'Exporting Data'
-    # cps_mar.to_csv('cpsmar2014.csv', index=False)
+    cps_mar.to_csv('cpsmar2014.csv', index=False)
     return cps_mar

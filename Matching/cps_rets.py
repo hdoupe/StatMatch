@@ -62,7 +62,7 @@ class Returns(object):
 
         Returns
         -------
-        None
+        CPS Tax Units File
 
         """
         # Extract each household from full CPS file
@@ -129,7 +129,7 @@ class Returns(object):
                     continue
                 self.tax_units.append(self.output(unit))
         output = pd.DataFrame(self.tax_units)
-        # output.to_csv('CPSRETS2014.csv', index=False)
+        output.to_csv('CPSRETS2014.csv', index=False)
         return output
 
     def create(self, record):
