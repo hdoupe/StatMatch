@@ -1,9 +1,7 @@
 """
-Create tax units from the processed CPS data
-Input file: cpsmar2014.csv
+Class for creating CPS tax units
 """
 
-from collections import OrderedDict
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -15,17 +13,16 @@ class Returns(object):
     """
     def __init__(self, cps):
         """
-
         Parameters
         ----------
         cps: CPS file used
         """
-        # Set CPS file and the household numbers in that file
+        # Set CPS and household numbers in the file
         self.cps = cps
         self.h_nums = np.unique(self.cps['h_seq'].values)
         self.nunits = 0
 
-        # Set filing thresholds. Currently for 2014
+        # Set filing thresholds
         self.single = 10150
         self.single65 = 11700
         self.hoh = 13050
@@ -37,123 +34,114 @@ class Returns(object):
         self.widow65 = 17550
         self.depwages = 0
         self.depTotal = 1000
-        # wage thresholds for non-dependent filers
+        # Wage thresholds for non-dependent filers
         self.wage1 = 1000
         self.wage2 = 250
-        self.wage2nk = 10000
+        self.wage2nk = 1000
         self.wage3 = 1
-
-        # Set dependent exemptions
+        # Dependent exemption
         self.depExempt = 3950
 
-        # Lists to hold tax units in each household and over all
+        # Lists to hold tax units in each household
         self.house_units = list()
         self.tax_units = list()
 
-        # Start the tax unit creation process
-        # self.computation()
+        # Set flags in CPS file
+        self.cps['h_flag'] = False  # Tax unit head flag
+        self.cps['s_flag'] = False  # Tax unit spouse flag
+        self.cps['d_flag'] = False  # Tax Unit Dependent flag
+        self.cps['flag'] = False  # General flag
 
     def computation(self):
         """
-        Construct tax units based on type of household:
-        1. Single persons living alone
+        Construct tax units based on type of household
+        1. Single person living alone
         2. Persons living in group quarters
         3. All other family structures
 
         Returns
         -------
-        CPS Tax Units File
-
+        CPS Tax Units file
         """
         # Extract each household from full CPS file
-        # Tax unit head flag
-        self.cps['h_flag'] = False
-        # Tax unit spouse flag
-        self.cps['s_flag'] = False
-        # Tax unit dependent flag
-        self.cps['d_flag'] = False
-        # flag
-        self.cps['flag'] = False
-
+        # TODO: Check if this is actually needed
         self.cps['alm_val'] = 0
         for index, row in self.cps.iterrows():
             if row['oi_off'] == 20:
                 row['alm_val'] = row['oi_off']
 
         for num in tqdm(self.h_nums):
-            try:
-                self.nunits = 0
-                del self.house_units[:]
-                self.household = self.cps[self.cps['h_seq'] == num]
-                self.household = self.household.sort_values('a_lineno')
-                self.household = self.household.to_dict('records')
+            self.nunits = 0
+            # Clear house_units list
+            del self.house_units[:]
+            # Pull households from CPS
+            household = self.cps[self.cps['h_seq'] == num]
+            household = household.sort_values('a_lineno')
+            house_dict = household.to_dict('records')
 
-                # Single person living alone
-                if ((self.household[0]['h_type'] == 6 or
-                     self.household[0]['h_type'] == 7) and
-                        (self.household[0]['h_numper'] == 1)):
-                    self.house_units.append(self.create(self.household[0]))
-                # Persons living in group quarters
-                elif self.household[0]['h_type'] == 9:
-                    for person in self.household:
-                        self.house_units.append(self.create(person))
-                # All other households
-                else:
-                    for person in self.household:
-                        # Only call create method if they aren't flagged
-                        if (not person['h_flag'] and not
-                                person['s_flag'] and not
-                                person['d_flag']):
-                            self.house_units.append(self.create(person))
-                        if not person['s_flag'] and person['d_flag']:
-                            if self.must_file(person):
-                                self.house_units.append(self.create(person))
-                        # If there is more than one tax unit in a household,
-                        # search for dependencies among the household
-                        if self.nunits > 1:
-                            self.tax_units_search()
-            # for some individuals, a_spouse is not correct
-            except IndexError:
-                print "IndexError"
-                continue
+            # Set flags for household type
+            single = (house_dict[0]['h_type'] == 6 or
+                      house_dict[0]['h_type'] == 7)
+            group = house_dict[0]['h_type'] == 9
+            # other = not single and not group
 
-            # Check head of household status for each unit in the household
+            # Call create for each household
+            # Single persons living alone
+            if single:
+                self.house_units.append(self.create(house_dict[0], house_dict))
+            elif group:
+                for person in house_dict:
+                    self.house_units.append(self.create(person, house_dict))
+            else:
+                for person in house_dict:
+                    # Only call create method if not flagged
+                    if (not person['h_flag'] and not
+                            person['s_flag'] and not
+                            person['d_flag']):
+                        self.house_units.append(self.create(person,
+                                                            house_dict))
+                    # Check if dependent needs to file
+                    if not person['s_flag'] and person['d_flag']:
+                        if self.must_file(person):
+                            self.house_units.append(self.create(person,
+                                                                house_dict))
+                    # Search for dependencies within the household
+                    if self.nunits > 1:
+                        self.tax_units_search()
+            # Check for head of household status
             [self.hhstatus(unit) for unit in self.house_units]
-            '''
-            Might be able to replace loop with map function:
-            map(self.hhstatus(), self.house_units)
-            '''
-            # Add each unit to the combined unit list
+
+            # Add each unit to full tax unit list
             for unit in self.house_units:
                 if not unit['t_flag']:
                     continue
-                self.tax_units.append(self.output(unit))
-        output = pd.DataFrame(self.tax_units)
-        output.to_csv('CPSRETS2014.csv', index=False)
-        return output
+                self.tax_units.append(self.output(unit, house_dict))
+        final_output = pd.DataFrame(self.tax_units)
+        final_output.to_csv('CPSRETS2014.csv', index=False)
+        return final_output
 
-    def create(self, record):
+    def create(self, record, house):
         """
         Create a CPS tax unit
         Parameters
         ----------
-        record: Records for person in the household
+        record: dictionary record for the head of the unit
+        house: list of dictionaries, each containing a memeber of the hosuehold
 
         Returns
         -------
         A tax unit
-
         """
-        unit = OrderedDict()
+        # Set head of household as record
         self.nunits += 1
-        # flag this person
+        # Flag head of household
         record['flag'] = True
-        # income items
+
+        # Income items
         was = record['wsal_val']
         wasp = was
         intst = record['int_val']
         dbe = record['div_val']
-
         alimony = record['alm_val']
         bil = record['semp_val']
         pensions = record['rtm_val']
@@ -161,10 +149,12 @@ class Returns(object):
         fil = record['frse_val']
         ucomp = record['uc_val']
         socsec = record['ss_val']
-        # weight & flags
+
+        # Weights and flags
         wt = record['fsup_wgt']
         ifdept = record['d_flag']  # Tax unit dependent flag
-        record['h_flag'] = True   # Tax Unit Head Flag
+        record['h_flag'] = True  # Tax unit head flag
+
         # CPS identifiers
         xhid = record['h_seq']
         xfid = record['ffpos']
@@ -217,46 +207,56 @@ class Returns(object):
             agede = 0
         depne = 0
         ages = np.nan
-        wass = np.nan
+        wass = 0
+        # Single and separated individuals
         if ms_type == 1:
             js = 1
             ages = np.nan
-            # Certain single & separated individuals living alone are allowed
-            # to file as head of household.
+            # Certain single individuals can file as head of household
             if ((record['h_type'] == 6 or
                  record['h_type'] == 7) and record['h_numper'] == 1):
                 if ms == 6:
-                    js = 3  # JS = 1 in SAS code
+                    js = 3
         else:
             js = 2
             if sp_ptr != 0:
-                ages = self.household[sp_ptr - 1]['a_age']
+                # Pull the spouse's record
+                try:
+                    spouse = house[sp_ptr - 1]
+                except IndexError:
+                    for person in house:
+                        if (person['a_lineno'] == record['a_spouse'] and
+                                person['a_spouse'] == record['a_lineno']):
+                            spouse = person
+                            break
+                ages = spouse['a_age']
                 if ages >= 65:
                     agede += 1
-                wass = self.household[sp_ptr - 1]['wsal_val']
+                # Income items
+                wass = spouse['wsal_val']
                 was += wass
-                intst += self.household[sp_ptr - 1]['int_val']
-                dbe += self.household[sp_ptr - 1]['div_val']
-                alimony += self.household[sp_ptr - 1]['alm_val']
-                bil += self.household[sp_ptr - 1]['semp_val']
-                pensions += self.household[sp_ptr - 1]['rtm_val']
-                rents += self.household[sp_ptr - 1]['rnt_val']
-                fil += self.household[sp_ptr - 1]['frse_val']
-                ucomp += self.household[sp_ptr - 1]['uc_val']
-                socsec += self.household[sp_ptr - 1]['ss_val']
+                intst += spouse['int_val']
+                dbe += spouse['div_val']
+                alimony += spouse['alm_val']
+                bil += spouse['semp_val']
+                pensions += spouse['rtm_val']
+                rents += spouse['rnt_val']
+                fil += spouse['frse_val']
+                ucomp += spouse['uc_val']
+                socsec += spouse['ss_val']
                 # Tax unit spouse flag
-                self.household[sp_ptr - 1]['s_flag'] = True
+                spouse['s_flag'] = True
 
-                # CPS Evaluation Criteria (spouse)
-                zagesp = self.household[sp_ptr - 1]['a_age']
-                zworkc += self.household[sp_ptr - 1]['wc_val']
-                zsocse += self.household[sp_ptr - 1]['ss_val']
-                zssinc += self.household[sp_ptr - 1]['ssi_val']
-                zpubas += self.household[sp_ptr - 1]['paw_val']
-                zvetbe += self.household[sp_ptr - 1]['vet_val']
+                # CPS evaluation criteria
+                zagesp = spouse['a_age']
+                zworkc += spouse['wc_val']
+                zsocse += spouse['ss_val']
+                zssinc += spouse['ssi_val']
+                zpubas += spouse['paw_val']
+                zvetbe += spouse['vet_val']
                 zchsup += 0
                 zfinas += 0
-                zwassp = self.household[sp_ptr - 1]['wsal_val']
+                zwassp = spouse['wsal_val']
 
         if intst > 400:
             xschb = 1
@@ -278,8 +278,7 @@ class Returns(object):
         record['101'] = record['a_age']
         record['102'] = np.nan
         if sp_ptr != 0:
-            record['102'] = self.household[sp_ptr - 1]['a_age']
-
+            record['102'] = spouse['a_age']
         # health insurance coverage
         record['110'] = 0
         record['111'] = 0
@@ -300,7 +299,6 @@ class Returns(object):
         if sp_ptr != 0:
             record['118'] = 0
             record['119'] = 0
-
         # health status
         record['120'] = 0
         record['121'] = np.nan
@@ -318,22 +316,17 @@ class Returns(object):
         record['129'] = zowner  # home ownership flag
         record['130'] = 0  # wage share
         if sp_ptr != 0:
-            record['122'] += self.household[sp_ptr - 1]['ssi_val']
-            record['123'] += self.household[sp_ptr - 1]['paw_val']
-            record['124'] += self.household[sp_ptr - 1]['wc_val']
-            record['125'] += self.household[sp_ptr - 1]['vet_val']
-            record['126'] += 0
-            record['127'] += self.household[sp_ptr - 1]['dsab_val']
-            record['128'] += self.household[sp_ptr - 1]['ss_val']
-            totalwas = (record['wsal_val'] +
-                        self.household[sp_ptr - 1]['wsal_val'])
+            record['122'] += spouse['ss_val']
+            record['123'] += spouse['paw_val']
+            record['124'] += spouse['wc_val']
+            record['125'] += spouse['vet_val']
+            record['126'] = 0
+            record['127'] += spouse['dsab_val']
+            record['128'] += spouse['ss_val']
+            totalwas = was
+            # Find total wage share
             if totalwas > 0:
-                record['130'] = (min(record['wsal_val'],
-                                     self.household[sp_ptr - 1]['wsal_val']) /
-                                 float(totalwas))
-
-        # energy assistance, food stamp, school lunch
-        # only get put on the return of the primary taxpayer
+                record['130'] = wasp / float(totalwas)
 
         if self.nunits == 1:
             record['131'] = 0
@@ -343,9 +336,6 @@ class Returns(object):
             record['131'] = np.nan
             record['132'] = np.nan
             record['133'] = np.nan
-
-        # additional health_related variables, etc:
-        # medicare, medicade, champus and country of origin
 
         record['134'] = 0
         record['135'] = record['ljcw']
@@ -357,19 +347,17 @@ class Returns(object):
         record['141'] = np.nan
         if sp_ptr != 0:
             record['138'] = 0
-            record['139'] = self.household[sp_ptr - 1]['ljcw']
-            record['140'] = self.household[sp_ptr - 1]['wemind']
-            record['141'] = self.household[sp_ptr - 1]['penatvty']
+            record['139'] = spouse['ljcw']
+            record['140'] = spouse['wemind']
+            record['141'] = spouse['penatvty']
 
-        # (1)	EDUCATIONAL ATTAINMENT (HEAD AND SPOUSE)
-        # (2)	GENDER (HEAD AND SPOUSE)
-        record['142'] = record['a_hga']
-        record['143'] = record['a_sex']
+        record['142'] = record['a_hga']  # Educational attainment
+        record['143'] = record['a_sex']  # Gender
         record['144'] = np.nan
         record['145'] = np.nan
         if sp_ptr != 0:
-            record['144'] = self.household[sp_ptr - 1]['a_hga']
-            record['145'] = self.household[sp_ptr - 1]['a_sex']
+            record['144'] = spouse['a_hga']  # Spouse educational attainment
+            record['145'] = spouse['a_sex']  # Spouse gender
 
         # self-employed industry - head and spouse
         classofworker = record['ljcw']
@@ -381,12 +369,12 @@ class Returns(object):
             sefarm = record['frse_val']
             majorindustry = record['wemind']
         if sp_ptr != 0:
-            classofworker = self.household[sp_ptr - 1]['ljcw']
+            classofworker = spouse['ljcw']
             if classofworker == 6:
-                senonfarm_sp = self.household[sp_ptr - 1]['semp_val']
-                sefarm_sp = self.household[sp_ptr - 1]['frse_val']
+                senonfarm_sp = spouse['semp_val']
+                sefarm_sp = spouse['frse_val']
                 if abs(senonfarm_sp) > abs(senonfarm):
-                    majorindustry = self.household[sp_ptr - 1]['wemind']
+                    majorindustry = spouse['wemind']
                     senonfarm += senonfarm_sp
                     sefarm += sefarm_sp
 
@@ -415,15 +403,15 @@ class Returns(object):
         record['169'] = np.nan
         record['170'] = np.nan
         if sp_ptr != 0:
-            record['161'] = self.household[sp_ptr - 1]['a_age']
-            record['162'] = self.household[sp_ptr - 1]['care']
-            record['163'] = self.household[sp_ptr - 1]['caid']
-            record['164'] = self.household[sp_ptr - 1]['oth']
-            record['165'] = self.household[sp_ptr - 1]['hi']
-            record['166'] = self.household[sp_ptr - 1]['priv']
-            record['167'] = self.household[sp_ptr - 1]['paid']
-            record['168'] = self.household[sp_ptr - 1]['filestat']
-            record['169'] = self.household[sp_ptr - 1]['agi']
+            record['161'] = spouse['a_age']
+            record['162'] = spouse['care']
+            record['163'] = spouse['caid']
+            record['164'] = spouse['oth']
+            record['165'] = spouse['hi']
+            record['166'] = spouse['priv']
+            record['167'] = spouse['paid']
+            record['168'] = spouse['filestat']
+            record['169'] = spouse['agi']
             record['170'] = 0
 
         record['171'] = record['wsal_val']
@@ -447,16 +435,16 @@ class Returns(object):
         record['189'] = np.nan
         record['190'] = np.nan
         if sp_ptr != 0:
-            record['181'] = self.household[sp_ptr - 1]['wsal_val']
-            record['182'] = self.household[sp_ptr - 1]['int_val']
-            record['183'] = self.household[sp_ptr - 1]['div_val']
-            record['184'] = self.household[sp_ptr - 1]['alm_val']
-            record['185'] = self.household[sp_ptr - 1]['semp_val']
-            record['186'] = self.household[sp_ptr - 1]['rtm_val']
-            record['187'] = self.household[sp_ptr - 1]['rnt_val']
-            record['188'] = self.household[sp_ptr - 1]['frse_val']
-            record['189'] = self.household[sp_ptr - 1]['uc_val']
-            record['190'] = self.household[sp_ptr - 1]['ss_val']
+            record['181'] = spouse['wsal_val']
+            record['182'] = spouse['int_val']
+            record['183'] = spouse['div_val']
+            record['184'] = spouse['alm_val']
+            record['185'] = spouse['semp_val']
+            record['186'] = spouse['rtm_val']
+            record['187'] = spouse['rnt_val']
+            record['188'] = spouse['frse_val']
+            record['189'] = spouse['uc_val']
+            record['190'] = spouse['ss_val']
 
         # retirement income
         record['191'] = record['ret_val1']
@@ -469,10 +457,10 @@ class Returns(object):
         record['198'] = np.nan
 
         if sp_ptr != 0:
-            record['195'] = self.household[sp_ptr - 1]['ret_val1']
-            record['196'] = self.household[sp_ptr - 1]['ret_sc1']
-            record['197'] = self.household[sp_ptr - 1]['ret_val2']
-            record['198'] = self.household[sp_ptr - 1]['ret_sc2']
+            record['195'] = spouse['ret_val1']
+            record['196'] = spouse['ret_sc1']
+            record['197'] = spouse['ret_val2']
+            record['198'] = spouse['ret_sc2']
 
         # disability income
 
@@ -485,10 +473,10 @@ class Returns(object):
         record['205'] = np.nan
         record['206'] = np.nan
         if sp_ptr != 0:
-            record['203'] = self.household[sp_ptr - 1]['dis_val1']
-            record['204'] = self.household[sp_ptr - 1]['dis_sc1']
-            record['205'] = self.household[sp_ptr - 1]['dis_val2']
-            record['206'] = self.household[sp_ptr - 1]['dis_sc2']
+            record['203'] = spouse['dis_val1']
+            record['204'] = spouse['dis_sc1']
+            record['205'] = spouse['dis_val2']
+            record['206'] = spouse['dis_sc2']
 
         # survivor income
 
@@ -502,12 +490,12 @@ class Returns(object):
         record['214'] = np.nan
 
         if sp_ptr != 0:
-            record['211'] = self.household[sp_ptr - 1]['sur_val1']
-            record['212'] = self.household[sp_ptr - 1]['sur_sc1']
-            record['213'] = self.household[sp_ptr - 1]['sur_val2']
-            record['214'] = self.household[sp_ptr - 1]['sur_sc2']
+            record['211'] = spouse['sur_val1']
+            record['212'] = spouse['sur_sc1']
+            record['213'] = spouse['sur_val2']
+            record['214'] = spouse['sur_sc2']
 
-            # veterans income
+        # veterans income
 
         record['215'] = record['vet_typ1']
         record['216'] = record['vet_typ2']
@@ -522,12 +510,12 @@ class Returns(object):
         record['225'] = np.nan
         record['226'] = np.nan
         if sp_ptr != 0:
-            record['221'] = self.household[sp_ptr - 1]['vet_typ1']
-            record['222'] = self.household[sp_ptr - 1]['vet_typ2']
-            record['223'] = self.household[sp_ptr - 1]['vet_typ3']
-            record['224'] = self.household[sp_ptr - 1]['vet_typ4']
-            record['225'] = self.household[sp_ptr - 1]['vet_typ5']
-            record['226'] = self.household[sp_ptr - 1]['vet_val']
+            record['221'] = spouse['vet_typ1']
+            record['222'] = spouse['vet_typ2']
+            record['223'] = spouse['vet_typ3']
+            record['224'] = spouse['vet_typ4']
+            record['225'] = spouse['vet_typ5']
+            record['226'] = spouse['vet_val']
 
         record['227'] = sp_ptr
 
@@ -585,26 +573,26 @@ class Returns(object):
         record['275'] = np.nan
 
         if sp_ptr != 0:
-            record['256'] = self.household[sp_ptr - 1]['paw_val']
-            record['257'] = self.household[sp_ptr - 1]['mcaid']
-            record['258'] = self.household[sp_ptr - 1]['pchip']
-            record['259'] = self.household[sp_ptr - 1]['wicyn']
-            record['260'] = self.household[sp_ptr - 1]['ssi_val']
-            record['261'] = self.household[sp_ptr - 1]['hi_yn']
-            record['262'] = self.household[sp_ptr - 1]['hiown']
-            record['263'] = self.household[sp_ptr - 1]['hiemp']
-            record['264'] = self.household[sp_ptr - 1]['hipaid']
-            record['265'] = self.household[sp_ptr - 1]['emcontrb']
-            record['266'] = self.household[sp_ptr - 1]['hi']
-            record['267'] = self.household[sp_ptr - 1]['hityp']
-            record['268'] = self.household[sp_ptr - 1]['paid']
-            record['269'] = self.household[sp_ptr - 1]['priv']
-            record['270'] = self.household[sp_ptr - 1]['prityp']
-            record['271'] = self.household[sp_ptr - 1]['ss_val']
-            record['272'] = self.household[sp_ptr - 1]['uc_val']
-            record['273'] = self.household[sp_ptr - 1]['mcare']
-            record['274'] = self.household[sp_ptr - 1]['wc_val']
-            record['275'] = self.household[sp_ptr - 1]['vet_val']
+            record['256'] = spouse['paw_val']
+            record['257'] = spouse['mcaid']
+            record['258'] = spouse['pchip']
+            record['259'] = spouse['wicyn']
+            record['260'] = spouse['ssi_val']
+            record['261'] = spouse['hi_yn']
+            record['262'] = spouse['hiown']
+            record['263'] = spouse['hiemp']
+            record['264'] = spouse['hipaid']
+            record['265'] = spouse['emcontrb']
+            record['266'] = spouse['hi']
+            record['267'] = spouse['hityp']
+            record['268'] = spouse['paid']
+            record['269'] = spouse['priv']
+            record['270'] = spouse['prityp']
+            record['271'] = spouse['ss_val']
+            record['272'] = spouse['uc_val']
+            record['273'] = spouse['mcare']
+            record['274'] = spouse['wc_val']
+            record['275'] = spouse['vet_val']
 
         totincx = (was + intst + dbe + alimony + bil + pensions + rents + fil +
                    ucomp + socsec)
@@ -612,14 +600,13 @@ class Returns(object):
         if not ifdept:
             # Search for dependents among other members of the household who
             # are not already claimed on another return.
-            for individual in self.household:
+            for individual in house:
                 idxfid = individual['ffpos']
                 idxhea = individual['h_flag']
                 idxspo = individual['s_flag']
                 idxdep = individual['d_flag']
                 dflag = False
-                if ((self.household.index(individual) !=
-                     self.household.index(record)) and
+                if ((house.index(individual) != house.index(record)) and
                         idxfid == xfid and not idxdep and not idxspo and
                         not idxhea):
                     # Determine if Individual is a dependent of the reference
@@ -687,8 +674,7 @@ class Returns(object):
                     individual['d_flag'] = True
                     depne += 1
                     dage = individual['a_age']
-                    record[('dep' +
-                            str(depne))] = self.household.index(individual)
+                    record[('dep' + str(depne))] = house.index(individual)
                     record['depage' + str(depne)] = dage
 
         cahe = np.nan
@@ -718,72 +704,69 @@ class Returns(object):
         return record
 
     def hhstatus(self, unit):
-
         """
         Determine head of household status
+
         Parameters
         ----------
-        unit: Tax unit
-
-        Returns
-        -------
-
-
+        unit: a tax unit
         """
+
         income = 0
-        for inuit in self.house_units:
-            totincx = (inuit['was'] + inuit['intst'] + inuit['dbe'] +
-                       inuit['alimony'] + inuit['bil'] + inuit['pensions'] +
-                       inuit['rents'] + inuit['fil'] + inuit['ucomp'] +
-                       inuit['socsec'])
-            income += totincx
+        # Find total income for the tax unit
+        for iunit in self.house_units:
+            totinc = (iunit['was'] + iunit['intst'] + iunit['dbe'] +
+                      iunit['alimony'] + iunit['bil'] + iunit['pensions'] +
+                      iunit['rents'] + iunit['fil'] + iunit['ucomp'] +
+                      iunit['socsec'])
+            income += totinc
+        # Find income for the individual
         if income > 0:
             totincx = (unit['was'] + unit['intst'] + unit['dbe'] +
                        unit['alimony'] + unit['bil'] + unit['pensions'] +
                        unit['rents'] + unit['fil'] + unit['ucomp'] +
                        unit['socsec'])
-            indjs = unit['js']
-            indif = unit['ifdept']
-            inddx = unit['depne']
-            if indjs == 1 and float(totincx)/income > 0.99:
+            indjs = unit['js']  # Filind status
+            indif = unit['ifdept']  # Dependency status
+            inddx = unit['depne']  # Number of dependent exemptions
+            if indjs == 1 and float(totincx) / income > 0.99:
                 if indif != 1 and inddx > 0:
                     unit['js'] = 3
 
     def must_file(self, record):
         """
-        Check if a dependent must file
+        Determine if a dependent must file
         Parameters
         ----------
-        record
-
+        record: record for the dependent
         Returns
         -------
         True if person must file, False otherwise
-
         """
         wages = record['wsal_val']
         income = (wages + record['semp_val'] + record['frse_val'] +
                   record['uc_val'] + record['ss_val'] + record['rtm_val'] +
                   record['int_val'] + record['div_val'] + record['rnt_val'] +
                   record['alm_val'])
-        if (wages > self.depwages) or (income > self.depTotal):
-            depfile = 1
+        # Determine if dependent exceeds filing thresholds
+        if wages > self.depwages or income > self.depTotal:
+            depfile = True
         else:
             depfile = False
         return depfile
 
     def convert(self, ix, iy):
         """
-        Convert an existing tax unit (IX)
-        to a dependent filer and add the dependent
-        information to the target return (IY)
+        Convert existing tax unit (ix) to a dependent filer and add dependent
+        information to the target return (iy)
+
         Parameters
         ----------
-        IX, IY : tax units
+        ix, iy: tax units
 
         Returns
         -------
-
+        None
         """
         self.house_units[ix]['ifdept'] = True
         ixdeps = self.house_units[ix]['depne']
@@ -791,7 +774,7 @@ class Returns(object):
         self.house_units[ix]['depne'] = 0
         ixjs = self.house_units[ix]['js']
         if ixjs == 2:
-            self.house_units[iy]['depne'] += (ixdeps + 2)
+            self.house_units[iy]['depne'] += ixdeps + 2
             self.house_units[iy]['dep' + str(iydeps + 1)] = ix
             self.house_units[iy][('dep' +
                                   str(iydeps +
@@ -811,128 +794,127 @@ class Returns(object):
                                       1))] = self.house_units[ix]['a_age']
             iybgin = iydeps + 1
         if ixdeps > 0:
+            # Assign any dependents to target record
             for ndeps in range(1, ixdeps + 1):
-                self.house_units[iy][('dep' + str(iybgin + ndeps))] = self.house_units[ix]['dep' + str(ndeps)]
-                self.house_units[ix]['dep' + str(iybgin + ndeps)] = 0
-                self.house_units[iy]['depage' + str(iybgin + ndeps)] = self.house_units[ix]['depage' + str(ndeps)]
+                dep = 'dep' + str(iybgin + ndeps)
+                depx = 'dep' + str(ndeps)
+                depage = 'depage' + str(iybgin + ndeps)
+                depagex = 'depage' + str(ndeps)
+                self.house_units[iy][dep] = self.house_units[ix][depx]
+                self.house_units[ix][dep] = 0
+                self.house_units[iy][depage] = self.house_units[ix][depagex]
 
     def tax_units_search(self):
         """
-        Analogous to SEARCH2 macro in SAS files.
-        Searches among the tax units in a household to see if there are any
-        dependencies
-        Parameters
-        ----------
-
-        Returns
-        -------
-
+        Search for dependencies among tax units in a household
         """
-        highest = -9.9E32
+        highest = -9.9e32
         idxhigh = 0
+        # Find tax unit with highest income
         for ix in range(0, self.nunits):
             totincx = self.house_units[ix]['totincx']
             if totincx > highest:
                 highest = totincx
                 idxhigh = ix
+        # If it is not already a dependent unit, search for dependents
         if not self.house_units[idxhigh]['ifdept']:
             for ix in range(0, self.nunits):
                 idxjs = self.house_units[ix]['js']
                 idxdepf = self.house_units[ix]['ifdept']
                 idxrelc = self.house_units[ix]['a_exprrp']
                 idxfamt = self.house_units[ix]['ftype']
-                if ((ix != idxhigh) and (idxdepf != 1) and (highest >= 0) and
-                        (idxjs != 2)):
-                    if (idxfamt == 1) or (idxfamt == 3) or (idxfamt == 5):
+                if (ix != idxhigh and not idxdepf and highest > 0 and
+                        idxjs != 2):
+                    if idxfamt == 1 or idxfamt == 3 or idxfamt == 5:
                         totincx = self.house_units[ix]['totincx']
                         if totincx <= 0:
                             self.house_units[ix]['t_flag'] = False
                             self.convert(ix, idxhigh)
-                        if 3000 >= totincx > 0:
+                        if 0 < totincx <= 3000:
                             self.convert(ix, idxhigh)
                     if idxrelc == 11:
                         self.house_units[ix]['t_flag'] = False
                         self.convert(ix, idxhigh)
 
-    def filst(self, output):
+    def filst(self, unit):
         """
-        Determines whether or not a CPS Tax Unit
-        actually files a return.
+        Determines whether or not a tax unit files a return using five tests
+        1. Wage test. If anyone in the tax unit had wage and salary income,
+           the unit is deemed to file a return
+        2. Gross income test. The income thresholds in the 1040 filing
+           requirements are used to determine if the tax unit has to file.
+        3. Dependent filer test. Individuals who are claimed as dependents, but
+           are required to file a return
+        4. Random selection
+        5. Negative income
+
         Parameters
         ----------
-        output
-
-        Returns
-        -------
-
+        unit: a tax unit
         """
+        # Wage test
+        unit['filst'] = 0
+        if unit['js'] == 1:
+            if unit['was'] >= self.wage1:
+                unit['filst'] = 1
+        elif unit['js'] == 2:
+            if unit['depne'] > 0:
+                if unit['was'] >= self.wage2:
+                    unit['filst'] = 1
+                if unit['was'] >= self.wage2nk:
+                    unit['filst'] = 1
 
-        # test1: wage test
-        output['filst'] = 0
-        if output['js'] == 1:
-            if output['was'] >= self.wage1:
-                output['filst'] = 1
-        if output['js'] == 2:
-            if output['depne'] > 0:
-                if output['was'] >= self.wage2:
-                    output['filst'] = 1
-                if output['was'] >= self.wage2nk:
-                    output['filst'] = 1
-        if output['js'] == 3:
-            if output['was'] >= self.wage3:
-                output['filst'] = 1
-
-        # test2: wage test
-        if output['js'] == 1:
-            amount = self.single - self.depExempt * output['depne']
-            if output['agede'] != 0:
-                amount = self.single65 - self.depExempt * output['depne']
-            if output['income'] >= amount:
-                output['filst'] = 1
-        if output['js'] == 2:
-            amount = self.joint - self.depExempt * output['depne']
-            if output['agede'] == 1:
-                amount = self.joint65one - self.depExempt * output['depne']
-                amount = self.joint65both - self.depExempt * output['depne']
-            if output['income'] >= amount:
-                output['filst'] = 1
-        if output['js'] == 3:
+        # Gross income test
+        if unit['js'] == 1:
+            amount = self.single - self.depExempt * unit['depne']
+            if unit['agede'] != 0:
+                amount = self.single65 - self.depExempt * unit['depne']
+            if unit['income'] >= amount:
+                unit['filst'] = 1
+        if unit['js'] == 2:
+            amount = self.joint - self.depExempt * unit['depne']
+            if unit['agede'] == 1:
+                amount = self.joint65one - self.depExempt * unit['depne']
+                amount = self.joint65both - self.depExempt * unit['depne']
+            if unit['income'] >= amount:
+                unit['filst'] = 1
+        if unit['js'] == 3:
             amount = self.hoh
-            if output['agede'] != 0:
-                amount = self.hoh65 - self.depExempt * output['depne']
-            if output['income'] >= amount:
-                output['filst'] = 1
+            if unit['agede'] != 0:
+                amount = self.hoh65 - self.depExempt * unit['depne']
+            if unit['income'] >= amount:
+                unit['filst'] = 1
 
-        # test3: dependent filers
-        if output['ifdept']:
-            output['filst'] = 1
-        # test4: random selection
-        if (output['js'] == 3 and output['agede'] > 0 and
-                output['income'] < 6500 and output['depne'] > 0):
-            output['filst'] = 0
-        # test5 : negative income
-        if (output['bil'] < 0) or (output['fil'] < 0) or (output['rents'] < 0):
-            output['filst'] = 1
+        # Dependent filer test
+        if unit['ifdept']:
+            unit['filst'] = 1
+        # Random selection
+        if (unit['js'] == 3 and unit['agede'] > 0 and
+                unit['income'] < 6500 and unit['depne'] > 0):
+            unit['filst'] = 0
+        # Negative incomet test
+        if unit['bil'] < 0 or unit['fil'] < 0 or unit['rents'] < 0:
+            unit['filst'] = 1
 
-    def output(self, unit):
+    def output(self, unit, house):
         """
-        After all CPS Tax Units have been created,
-        output all records.
+        After the tax units have been created, output all records
         Parameters
         ----------
-        unit
+        unit: head tax unit
+        house: household of tax unit
 
         Returns
         -------
-        output
+        Completed tax unit
         """
 
-        output = {}
+        record = {}
         depne = unit['depne']
         if unit['js'] == 2:
             txpye = 2
         else:
-            txpye = 1
+            txpye = 2
         xxtot = txpye + depne
         # Check relationship codes among dependents
         xxoodep = 0
@@ -940,51 +922,52 @@ class Returns(object):
         xxocah = 0
         xxocawh = 0
         if depne > 0:
-            for i in range(1, depne+1):
-                pptr = i
+            for i in range(1, depne + 1):
                 dindex = unit['dep' + str(i)]
-                drel = self.household[dindex]['a_exprrp']
-                dage = self.household[dindex]['a_age']
+                drel = house[dindex]['a_exprrp']
+                dage = house[dindex]['a_age']
                 if drel == 8:
                     xxopar += 1
-                if (drel >= 9) and (dage >= 18):
+                if drel >= 9 and dage >= 18:
                     xxoodep += 1
                 if dage < 18:
                     xxocah += 1
 
-        output['xagex'] = unit['agede']
-        output['xstate'] = unit['xstate']
-        output['xregion'] = unit['xregion']
-        output['xschb'] = unit['xschb']
-        output['xschf'] = unit['xschf']
-        output['xsche'] = unit['xsche']
-        output['xschc'] = unit['xschc']
-        output['xhid'] = unit['xhid']
-        output['xfid'] = unit['xfid']
-        output['xpid'] = unit['xpid']
+        record['xagex'] = unit['agede']
+        record['hhid'] = unit['h_seq']
 
         oldest = 0
         youngest = 0
         if depne > 0:
-            oldest = -9.9E16
-            youngest = 9.9E16
+            oldest = -9.9e16
+            youngest = 9.9e16
             for i in range(1, depne + 1):
-                dindex = i
-                dage = unit['depage' + str(dindex)]
+                dage = unit['depage' + str(i)]
                 if dage > oldest:
                     oldest = dage
                 if dage < youngest:
                     youngest = dage
                 unit['zoldes'] = oldest
                 unit['zyoung'] = youngest
+        record['oldest'] = oldest
+        record['youngest'] = youngest
+        record['xxocah'] = xxocah
+        record['xxpcawh'] = xxocawh
+        record['xxoodep'] = xxoodep
+        record['xxopar'] = xxopar
+        record['xxtot'] = xxtot
 
-        output['oldest'] = oldest
-        output['youngest'] = youngest
-        output['xxocah'] = xxocah
-        output['xxocawh'] = xxocawh
-        output['xxoodep'] = xxoodep
-        output['xxopar'] = xxopar
-        output['xxtot'] = xxtot
+        repeated_vars = ['xstate', 'xregion', 'xschb', 'xschf',
+                         'xsche', 'xschc', 'xhid', 'xfid', 'xpid', 'h_seq',
+                         'peridnum', 'js', 'ifdept', 'agede', 'depne', 'cahe',
+                         'ageh', 'ages', 'was', 'intst', 'dbe', 'alimony',
+                         'bil', 'pensions', 'rents', 'fil', 'ucomp', 'socsec',
+                         'returns', 'wt', 'zifdep', 'zntdep', 'zhhinc',
+                         'zagesp', 'zoldes', 'zyoung', 'zworkc', 'zsocse',
+                         'zssinc', 'zpubas', 'zvetbe', 'zfinas', 'zowner',
+                         'zwaspt', 'zwassp', 'wasp', 'wass']
+        for var in repeated_vars:
+            record[var] = unit[var]
 
         icps1 = unit['101']
         icps2 = unit['102']
@@ -1173,87 +1156,37 @@ class Returns(object):
 
         for i in range(1, 49):
             var = 'icps' + str(i)
-            output[str(var)] = eval(var)
+            record[str(var)] = eval(var)
         for i in range(1, 125):
             var = 'jcps' + str(i)
-            output[str(var)] = eval(var)
+            record[str(var)] = eval(var)
 
         d5 = min(depne, 5)
         if d5 > 0:
             for i in range(1, d5 + 1):
                 var = 'icps' + str(2+i)
-                output[str(var)] = unit['depage' + str(i)]
+                record[str(var)] = unit['depage' + str(i)]
 
         zdepin = 0
         if depne > 0:
-            for i in range(1, depne+1):
+            for i in range(1, depne + 1):
                 dindex = unit['dep' + str(i)]
-                if not self.household[dindex]['flag']:
-                    zdepin = (zdepin + self.household[dindex]['wsal_val'] +
-                              self.household[dindex]['semp_val'] +
-                              self.household[dindex]['frse_val'] +
-                              self.household[dindex]['uc_val'] +
-                              self.household[dindex]['ss_val'] +
-                              self.household[dindex]['rtm_val'] +
-                              self.household[dindex]['int_val'] +
-                              self.household[dindex]['div_val'] +
-                              self.household[dindex]['alm_val'])
-        output['h_seq'] = unit['h_seq']
-        output['hhid'] = unit['h_seq']
-        output['peridnum'] = unit['peridnum']
-        output['js'] = unit['js']
-        output['ifdept'] = unit['ifdept']
-        output['agede'] = unit['agede']
-        output['depne'] = unit['depne']
-        output['cahe'] = unit['cahe']
-        output['ageh'] = unit['ageh']
-        output['ages'] = unit['ages']
-        output['was'] = unit['was']
-        output['intst'] = unit['intst']
-        output['dbe'] = unit['dbe']
-        output['alimony'] = unit['alimony']
-        output['bil'] = unit['bil']
-        output['pensions'] = unit['pensions']
-        output['rents'] = unit['rents']
-        output['fil'] = unit['fil']
-        output['ucomp'] = unit['ucomp']
-        output['socsec'] = unit['socsec']
-
-        output['income'] = (unit['was'] + unit['intst'] + unit['dbe'] +
+                if not house[dindex]['flag']:
+                    zdepin += (house[dindex]['wsal_val'] +
+                               house[dindex]['semp_val'] +
+                               house[dindex]['frse_val'] +
+                               house[dindex]['uc_val'] +
+                               house[dindex]['ss_val'] +
+                               house[dindex]['rtm_val'] +
+                               house[dindex]['int_val'] +
+                               house[dindex]['div_val'] +
+                               house[dindex]['alm_val'])
+        record['zdepin'] = zdepin
+        record['income'] = (unit['was'] + unit['intst'] + unit['dbe'] +
                             unit['alimony'] + unit['bil'] + unit['pensions'] +
                             unit['rents'] + unit['fil'] + unit['ucomp'] +
                             unit['socsec'])
+        # Find filing status of record
+        self.filst(record)
 
-        output['returns'] = unit['returns']
-        output['wt'] = unit['wt']
-        output['zifdep'] = unit['zifdep']
-        output['zntdep'] = unit['zntdep']
-        output['zhhinc'] = unit['zhhinc']
-        output['zagesp'] = unit['zagesp']
-        output['zoldes'] = unit['zoldes']
-        output['zyoung'] = unit['zyoung']
-        output['zworkc'] = unit['zworkc']
-        output['zsocse'] = unit['zsocse']
-        output['zssinc'] = unit['zssinc']
-        output['zpubas'] = unit['zpubas']
-        output['zvetbe'] = unit['zvetbe']
-        output['zchsup'] = unit['zchsup']
-        output['zfinas'] = unit['zfinas']
-        output['zdepin'] = zdepin
-        output['zowner'] = unit['zowner']
-        output['zwaspt'] = unit['zwaspt']
-        output['zwassp'] = unit['zwassp']
-        output['wasp'] = unit['wasp']
-        output['wass'] = unit['wass']
-
-        self.filst(output)
-
-        return output
-
-# Temporary. In future, class will be initiated in earlier script.
-# Read in data
-
-
-cps_recs = pd.read_csv('cpsmar2014.csv')
-# Obtain the household sequence numbers
-test = Returns(cps_recs)
+        return record

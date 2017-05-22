@@ -11,12 +11,10 @@ def adjfilst(cps_recs):
     """
     """
     # cps_recs = pd.read_csv('CPSRETS2014.csv')
-    case1 = (cps_recs['filst'] == 0) & (cps_recs['was'] > 0)
-    case2 = (cps_recs['filst'] == 0) & (cps_recs['was'] <= 0)
-    cps_recs['case1'] = np.nan
-    cps_recs['case1'][case1] = 1
-    cps_recs['case2'] = np.nan
-    cps_recs['case2'][case2] = 1
+    cps_recs['case1'] = np.where(((cps_recs['filst'] == 0) &
+                                 (cps_recs['was'] > 0)), 1, 0)
+    cps_recs['case2'] = np.where(((cps_recs['filst'] == 0) &
+                                  (cps_recs['was'] <= 0)), 1, 0)
     np.random.seed(142)
     cps_recs['z1'] = cps_recs['case1'].apply(lambda x: np.random.uniform(0, 1)
                                              if x == 1 else x)
@@ -25,7 +23,8 @@ def adjfilst(cps_recs):
                                              if x == 1 else x)
     # TODO: check the probability
     selected = (cps_recs['z1'] <= 0.84) | (cps_recs['z2'] <= 0.54)
-    cps_recs['filst'][selected] = 1
+    # cps_recs['filst'][selected] = 1
+    cps_recs['filst'] = np.where(selected, 1, cps_recs['filst'])
     cps_recs.drop(['case1', 'case2'], axis=1, inplace=True)
     cps_recs['cpsseq'] = cps_recs.index + 1
 

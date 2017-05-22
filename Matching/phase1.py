@@ -150,25 +150,25 @@ def phaseone(CPS, SOI):
     CPS_counts.rename(columns={'count': 'CPS_count', 'wgt': 'CPS_wgt'},
                       inplace=True)
 
-    counts = pd.merge(SOI_counts, CPS_counts, how='inner',
+    countx = pd.merge(SOI_counts, CPS_counts, how='inner',
                       on=['idept', 'ijs', 'iagede', 'idepne',
                           'ikids', 'iself'])
-    counts['factor'] = np.where(counts['CPS_wgt'] > 0,
-                                counts['SOI_wgt'] / counts['CPS_wgt'], 0)
-    counts['cellid'] = counts.index + 1
+    countx['factor'] = np.where(countx['CPS_wgt'] > 0,
+                                countx['SOI_wgt'] / countx['CPS_wgt'], 0)
+    countx['cellid'] = countx.index + 1
 
-    SOI_reg = pd.merge(SOI, counts, how='inner',
+    SOI_reg = pd.merge(SOI, countx, how='inner',
                        on=['idept', 'ijs', 'iagede', 'idepne',
                            'ikids', 'iself'])
     params = SOI_reg.groupby('cellid', as_index=False).apply(reg)
     params = params.add_prefix('params_')
     params['cellid'] = params.index + 1
 
-    SOI_new = pd.merge(SOI, counts, how='inner',
+    SOI_new = pd.merge(SOI, countx, how='inner',
                        on=['idept', 'ijs', 'iagede', 'idepne',
                            'ikids', 'iself'])
     SOI_new = pd.merge(SOI_new, params, on=['cellid'])
-    CPS_new = pd.merge(CPS, counts, how='inner',
+    CPS_new = pd.merge(CPS, countx, how='inner',
                        on=['idept', 'ijs', 'iagede', 'idepne',
                            'ikids', 'iself'])
     CPS_new = pd.merge(CPS_new, params, on=['cellid'])
@@ -183,5 +183,5 @@ def phaseone(CPS, SOI):
 
     SOI_final.to_csv('soirets2009_ph1.csv', index=False)
     CPS_final.to_csv('cpsrets14_ph1.csv', index=False)
-    counts.to_csv('counts.csv', index=False)
-    return SOI_final, CPS_final, counts
+    countx.to_csv('counts.csv', index=False)
+    return SOI_final, CPS_final, countx
