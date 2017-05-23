@@ -22,9 +22,9 @@ def phasetwo(SOI, CPS):
     cps_list = list()
     cwt_list = list()
 
-    for id in tqdm(cellid):
-            soi = SOI[SOI['cellid'] == id]
-            cps = CPS[CPS['cellid'] == id]
+    for cid in tqdm(cellid):
+            soi = SOI[SOI['cellid'] == cid]
+            cps = CPS[CPS['cellid'] == cid]
             soi = soi.sort_values('yhat')
             cps = cps.sort_values('yhat')
 
