@@ -223,6 +223,8 @@ class Returns(object):
                 # Pull the spouse's record
                 try:
                     spouse = house[sp_ptr - 1]
+                # For households whose records are not in order, loop through
+                # the house to search for the spouse
                 except IndexError:
                     for person in house:
                         if (person['a_lineno'] == record['a_spouse'] and
