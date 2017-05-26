@@ -5,7 +5,6 @@ Input file: CPSRETS2014.csv
 
 # import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 def adjfilst(cps_recs):
 	"""
@@ -41,7 +40,7 @@ def adjfilst(cps_recs):
 	cps_recs['cpsseq'] = cps_recs.index + 1
 
 	filers = cps_recs.copy()[(cps_recs['filst'] == 1)]
-	nonfilers = cps_recs.loc[cps_recs['filst'] == 0,:]
+	nonfilers = cps_recs.copy()[cps_recs['filst'] == 0,:]
 	filers.to_csv('cpsrets14.csv', index=False)
 	nonfilers.to_csv('cpsnonf2014.csv', index=False)
 	return filers, nonfilers
