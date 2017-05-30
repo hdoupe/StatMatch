@@ -16,11 +16,16 @@ def adjfilst(cps_recs):
     cps_recs['case2'] = np.where(((cps_recs['filst'] == 0) &
                                   (cps_recs['was'] <= 0)), 1, 0)
     np.random.seed(142)
-    cps_recs['z1'] = cps_recs['case1'].apply(lambda x: np.random.uniform(0, 1)
-                                             if x == 1 else x)
-    np.random.seed(1)
-    cps_recs['z2'] = cps_recs['case2'].apply(lambda x: np.random.uniform(0, 1)
-                                             if x == 1 else x)
+    # the first iteration allowed all case1 and case2 records to be selected since
+    #	1) if record was case1 then case2 was set to zero and thus was selected since it is less than 0.84 and 0.54
+    #	2) vice versa but all case1 were set to zero
+    cps_recs['z1'] = cps_recs.apply(lambda row: np.random.uniform(0, 1)
+        if row['case1'] == 1 else 1 if row['case2'] else 0,axis = 1)
+
+    cps_recs['z2'] = cps_recs.apply(lambda row: np.random.uniform(0, 1)
+        if row['case2'] == 1 else 1 if row['case1'] else 0,axis = 1)
+
+
     # TODO: check the probability
     selected = (cps_recs['z1'] <= 0.84) | (cps_recs['z2'] <= 0.54)
     # cps_recs['filst'][selected] = 1

@@ -25,6 +25,6 @@ def add_cps(cps_recs, match, puffile):
 
     merge_2['prodseq'] = merge_2.index + 1
     merge_2.rename(columns={'cwt': 'cweight'}, inplace=True)
-    merge_2['cweight'] = merge_2['matchwt']
+    merge_2['cweight'] = merge_2['wt']
     merge_2.to_csv('cpsrets.csv', index=False)
     return merge_2
