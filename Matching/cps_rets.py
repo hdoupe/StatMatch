@@ -954,7 +954,9 @@ class Returns(object):
         record['oldest'] = oldest
         record['youngest'] = youngest
         record['xxocah'] = xxocah
-        record['xxpcawh'] = xxocawh
+        # This looks like a typo
+        # record['xxpcawh'] = xxocawh
+        record['xxocawh'] = xxocawh
         record['xxoodep'] = xxoodep
         record['xxopar'] = xxopar
         record['xxtot'] = xxtot

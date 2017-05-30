@@ -14,19 +14,19 @@ import pandas as pd
 
 # Create original CPS file
 mar_cps = cpsmar.create_cps('asec2014_pubuse_tax_fix_5x8.dat')
-print 'CPS Created'
+print ('CPS Created')
 rets = Returns(mar_cps)
 cps = rets.computation()
-print 'CPS Tax Units Created'
+print ('CPS Tax Units Created')
 filers, nonfilers = adjfilst(cps)
-print 'Adjustment Complete'
+print ('Adjustment Complete')
 puf = pd.read_csv('puf2009.csv')
 soi = create_soi(puf)
-print 'PUF Created'
+print ('PUF Created')
 soi_final, cps_final, counts = phaseone(filers, soi)
-print 'Start Phase Two'
+print ('Start Phase Two')
 match = phasetwo(soi_final, cps_final)
-print 'Creating final file'
+print ('Creating final file')
 cpsrets = add_cps(filers, match, puf)
 cps_matched = add_nonfiler(cpsrets, nonfilers)
 cps_matched.to_csv('cps-matched-puf.csv')
