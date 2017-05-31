@@ -8,8 +8,8 @@ import pandas as pd
 
 
 def add_nonfiler(cpsrets, nonfiler):
-    nonfiler = pd.read_csv('cpsnonf2014.csv')
-    cpsrets = pd.read_csv('cpsrets.csv')
+    # nonfiler = pd.read_csv('cpsnonf2014.csv')
+    # cpsrets = pd.read_csv('cpsrets.csv')
 
     ifdept = nonfiler['ifdept']
     js = nonfiler['js']
@@ -29,7 +29,7 @@ def add_nonfiler(cpsrets, nonfiler):
     socsec = nonfiler['socsec']
     wt = nonfiler['wt']
 
-    nonfiler = nonfiler.filter(regex='jcps\d{1,2}$|icps\d{1}$|jcps100|cpsseq')
+    nonfiler = nonfiler.filter(regex='jcps\d{1,2}$|icps\d{1}$|jcps100|cpsseq|ageh')
 
     nonfiler['filer'] = 0
     nonfiler['soiseq'] = 0
@@ -263,5 +263,5 @@ def add_nonfiler(cpsrets, nonfiler):
 
     final = pd.concat([cpsrets, nonfiler], ignore_index=True)
     final['finalseq'] = final.index + 1
-    final.to_csv('prod2009_v2.csv', index=False)
+    # final.to_csv('prod2009_v2.csv', index=False)
     return final
