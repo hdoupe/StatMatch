@@ -14,6 +14,11 @@ import pandas as pd
 
 # Create original CPS file
 mar_cps = cpsmar.create_cps('asec2014_pubuse_tax_fix_5x8.dat')
+
+# If you already have the CPS in CSV format, comment out the line above and
+# uncomment the line bellow to skip creation from the DAT file and use the CSV
+
+# mar_cps = pd.read_csv('cpsmar2014.csv')
 print ('CPS Created')
 rets = Returns(mar_cps)
 cps = rets.computation()
