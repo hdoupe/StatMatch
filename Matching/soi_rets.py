@@ -57,7 +57,7 @@ def create_soi(SOI):
     SOI['xagede'] = SOI['agede']
     SOI['income'] = SOI['totincx']
 
-    wt = SOI['s006']/100
+    wt = SOI['s006'] / 100
     SOI['wt'] = wt * 1.03  # TODO: check the number
 
     SOI['sequence'] = SOI.index + 1
@@ -74,5 +74,5 @@ def create_soi(SOI):
                        'wt', 'filer']
 
     SOI = SOI[columns_to_keep]
-    SOI.to_csv('soirets2009.csv', index=False)
+    # SOI.to_csv('soirets2009.csv', index=False)
     return SOI

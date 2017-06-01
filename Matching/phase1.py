@@ -181,7 +181,7 @@ def phaseone(CPS, SOI):
     CPS_final = pd.merge(CPS, CPS_new[['cpsseq', 'cellid', 'yhat', 'factor']],
                          on=['cpsseq'])
 
-    SOI_final.to_csv('soirets2009_ph1.csv', index=False)
-    CPS_final.to_csv('cpsrets14_ph1.csv', index=False)
-    countx.to_csv('counts.csv', index=False)
+    # SOI_final.to_csv('soirets2009_ph1.csv', index=False)
+    # CPS_final.to_csv('cpsrets14_ph1.csv', index=False)
+    # countx.to_csv('counts.csv', index=False)
     return SOI_final, CPS_final, countx

@@ -3,7 +3,7 @@ import numpy as np
 
 from scipy.stats import ttest_ind, bartlett
 
-prod = pd.read_csv('PROD2009_v2.csv')
+prod = pd.read_csv('path to SAS produced matched file')
 test = pd.read_csv('cps-matched-puf.csv')
 
 print ('Prod')
