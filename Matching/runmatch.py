@@ -3,7 +3,7 @@ Script to run each phase of the matching process
 """
 
 from adj_filst import adjfilst
-# import cpsmar
+import cpsmar
 from cps_rets import Returns
 from soi_rets import create_soi
 from phase1 import phaseone
@@ -13,9 +13,8 @@ from add_nonfilers import add_nonfiler
 import pandas as pd
 
 # Create original CPS file
-# mar_cps = cpsmar.create_cps('asec2014_pubuse_tax_fix_5x8.dat')
+mar_cps = cpsmar.create_cps('asec2014_pubuse_tax_fix_5x8.dat')
 print ('CPS Created')
-mar_cps = pd.read_csv('cpsmar2014.csv')
 rets = Returns(mar_cps)
 cps = rets.computation()
 print ('CPS Tax Units Created')
