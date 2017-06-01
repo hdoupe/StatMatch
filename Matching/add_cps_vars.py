@@ -10,12 +10,14 @@ import pandas as pd
 
 def add_cps(cps_recs, match, puffile):
     # cps_recs = pd.read_csv('cpsrets14.csv')
-    cpsfile = cps_recs.filter(regex='jcps\d{1,2}$|icps\d{1}$|jcps100|cpsseq')
+    cpsfile = cps_recs.filter(regex='jcps\d{1,2}$|icps\d{1}$|jcps100|cpsseq|' +
+                                    'nu\d{1,2}|n1821|n21|elderly_dependent')
+    # cpsfile = cps_recs
     # match = pd.read_csv('match.csv')
     # puffile = pd.read_sas('puf2009.sas7bdat')
     puffile = puffile[puffile['recid'] != 999999]
     puffile['filer'] = 1
-    puffile['wt'] = puffile['s006']/100
+    puffile['wt'] = puffile['s006'] / 100
     puffile['soiseq'] = puffile.index + 1
 
     match.sort_values(['cpsseq'], inplace=True)
@@ -26,5 +28,5 @@ def add_cps(cps_recs, match, puffile):
     merge_2['prodseq'] = merge_2.index + 1
     merge_2.rename(columns={'cwt': 'cweight'}, inplace=True)
     merge_2['cweight'] = merge_2['wt']
-    merge_2.to_csv('cpsrets.csv', index=False)
+    # merge_2.to_csv('cpsrets.csv', index=False)
     return merge_2
