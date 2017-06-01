@@ -14,7 +14,10 @@ print ('Test')
 print ('N:', len(test))
 print ('N filed:', len(test[test['filer'] == 1]))
 
-columns = list(set(list(test.columns)).intersection(list(prod.columns)))
+test = test.rename(columns = {c:c.lower() for c in test.columns})
+prod = prod.rename(columns = {c:c.lower() for c in prod.columns})
+
+columns = list(set(test.columns).intersection(set(prod.columns)))
 
 results = {'variable': [], 'mean_production': [], 'mean_test': [],
            'mean_diff': [], 'studentt_pvalue': [], 'stddev_production': [],
