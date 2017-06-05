@@ -35,4 +35,10 @@ match = phasetwo(soi_final[['cellid', 'soiseq', 'wt', 'factor', 'yhat']],
 print ('Creating final file')
 cpsrets = add_cps(filers, match, puf)
 cps_matched = add_nonfiler(cpsrets, nonfilers)
+# Rename variables for use in PUF data prep
+renames = {'icps1': 'age_head',
+           'icps2': 'age_spouse',
+           'wasp': 'wage_head',
+           'wass': 'wage_spouse'}
+cps_matched = cps_matched.rename(columns=renames)
 cps_matched.to_csv('cps-matched-puf.csv')
