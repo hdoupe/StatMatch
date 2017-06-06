@@ -15,6 +15,11 @@ def phasetwo(SOI, CPS):
     #                  usecols=['cellid', 'cpsseq', 'wt', 'factor', 'yhat'])
 
     CPS['wt_adj'] = CPS['wt'] * CPS['factor']
+    factor = 1.
+    if CPS['wt'].sum() > 0:
+        factor = SOI['wt'].sum() / CPS['wt'].sum()
+
+    # CPS['wt_adj'] = CPS['wt'] * factor
 
     cellid = np.unique(SOI['cellid'].values)
 

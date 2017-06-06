@@ -261,7 +261,7 @@ def add_nonfiler(cpsrets, nonfiler):
     nonfiler['txrt'] = 0
 
     # weight
-    nonfiler['matchwt'] = wt
+    nonfiler['matched_weight'] = wt
 
     final = pd.concat([cpsrets, nonfiler], ignore_index=True)
     final['finalseq'] = final.index + 1
