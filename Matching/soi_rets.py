@@ -8,33 +8,35 @@ import numpy as np
 
 
 def create_soi(SOI):
-    # SOI = pd.read_sas('puf2009.sas7bdat')
-    SOI = SOI[SOI['recid'] != 999999]
+    # SOI = pd.read_sas('puf2009.sas7bdat
 
-    SOI['filer'] = 1
-    SOI['dmfs'] = 1
-    SOI.loc[((SOI['mars'] == 3) | (SOI['mars'] == 6), 'dmfs')] = 0.5
-    SOI['js'] = 2
-    SOI.loc[(SOI['mars'] == 1, 'js')] = 1
-    SOI.loc[(SOI['mars'] == 4, 'js')] = 3
-    SOI['depne'] = SOI['xocah'] + SOI['xocawh'] + SOI['xoodep'] + SOI['xopar']
-    SOI['agep'] = np.nan
-    SOI['ages'] = np.nan
-    SOI['agede'] = 0
-    SOI.loc[(SOI['e02400'] > 0, 'agede')] = 1
-    SOI['wasp'] = np.nan
-    SOI['wass'] = np.nan
-    SOI['ssincp'] = np.nan
-    SOI['ssincs'] = np.nan
-    SOI['returns'] = 1
-    SOI['oldest'] = np.nan
-    SOI['youngest'] = np.nan
-    SOI['agepsqr'] = np.nan
+    # see runmatch.py
+    # SOI = SOI[SOI['recid'] != 999999]
+
+    SOI.loc[:,'filer'] = 1
+    SOI.loc[:,'dmfs'] = 1
+    SOI.loc[(SOI['mars'] == 3) | (SOI['mars'] == 6), 'dmfs'] = 0.5
+    SOI.loc[:,'js'] = 2
+    SOI.loc[SOI['mars'] == 1, 'js'] = 1
+    SOI.loc[SOI['mars'] == 4, 'js'] = 3
+    SOI.loc[:,'depne'] = SOI['xocah'] + SOI['xocawh'] + SOI['xoodep'] + SOI['xopar']
+    SOI.loc[:,'agep'] = np.nan
+    SOI.loc[:,'ages'] = np.nan
+    SOI.loc[:,'agede'] = 0
+    SOI.loc[SOI['e02400'] > 0, 'agede'] = 1
+    SOI.loc[:,'wasp'] = np.nan
+    SOI.loc[:,'wass'] = np.nan
+    SOI.loc[:,'ssincp'] = np.nan
+    SOI.loc[:,'ssincs'] = np.nan
+    SOI.loc[:,'returns'] = 1
+    SOI.loc[:,'oldest'] = np.nan
+    SOI.loc[:,'youngest'] = np.nan
+    SOI.loc[:,'agepsqr'] = np.nan
 
     adjust = (SOI['e03150'] + SOI['e03210'] + SOI['e03220'] + SOI['e03230'] +
               SOI['e03260'] + SOI['e03270'] + SOI['e03240'] + SOI['e03290'] +
               SOI['e03300'] + SOI['e03400'] + SOI['e03500'])
-    SOI['totincx'] = SOI['e00100'] + adjust
+    SOI.loc[:,'totincx'] = SOI['e00100'] + adjust
 
     SOI.rename(columns={'recid': 'retid', 'xocah': 'cahe', 'xocawh': 'cafhe',
                         'xoodep': 'othdep', 'dsi': 'ifdept',
@@ -50,18 +52,18 @@ def create_soi(SOI):
 
     # I wanted to include 'e02000' in SOI.rename list. But somehow the column
     # is series before renaming, and DataFrame afterwards.
-    SOI['sche'] = SOI['e02000']
+    SOI.loc[:,'sche'] = SOI['e02000']
 
-    SOI['xifdept'] = SOI['ifdept']
-    SOI['xdepne'] = SOI['depne']
-    SOI['xagede'] = SOI['agede']
-    SOI['income'] = SOI['totincx']
+    SOI.loc[:,'xifdept'] = SOI['ifdept']
+    SOI.loc[:,'xdepne'] = SOI['depne']
+    SOI.loc[:,'xagede'] = SOI['agede']
+    SOI.loc[:,'income'] = SOI['totincx']
 
     wt = SOI['s006'] / 100
-    SOI['wt'] = wt * 1.03  # TODO: check the number
+    SOI.loc[:,'wt'] = wt * 1.03  # TODO: check the number
 
-    SOI['sequence'] = SOI.index + 1
-    SOI['soiseq'] = SOI.index + 1
+    SOI.loc[:,'sequence'] = SOI.index + 1
+    SOI.loc[:,'soiseq'] = SOI.index + 1
 
     columns_to_keep = ['js', 'agedep1', 'agedep2', 'agedep3', 'parents',
                        'ifdept', 'cahe', 'cafhe', 'othdep', 'depne', 'agep',
@@ -73,6 +75,4 @@ def create_soi(SOI):
                        'xdepne', 'income', 'retid', 'sequence', 'soiseq',
                        'wt', 'filer']
 
-    SOI = SOI[columns_to_keep]
-    # SOI.to_csv('soirets2009.csv', index=False)
-    return SOI
+    return SOI[columns_to_keep]
