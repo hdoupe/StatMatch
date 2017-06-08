@@ -208,6 +208,7 @@ class Returns(object):
         # Age related variables
         record['nu05'] = 0  # Only checked for dependents
         record['nu13'] = 0  # Only checked for dependents
+        record['nu18_dep'] = 0
         record['nu18'] = 0
         record['n1821'] = 0
         record['n21'] = 0
@@ -704,6 +705,7 @@ class Returns(object):
                         record['nu13'] += 1
                     if individual['a_age'] < 18:
                         record['nu18'] += 1
+                        record['nu18_dep'] += 1
                     if 18 <= individual['a_age'] < 21:
                         record['n1821'] += 1
                     if individual['a_age'] >= 21:

@@ -30,7 +30,7 @@ def add_nonfiler(cpsrets, nonfiler):
     wt = nonfiler['wt']
 
     nonfiler = nonfiler.filter(regex='jcps\d{1,2}$|icps\d{1}$|jcps100|' +
-                                     'cpsseq|nu\d{1,2}|n1821|n21|' +
+                                     'cpsseq|nu\d{1,2}|nu18_dep|n1821|n21|' +
                                      'elderly_dependent|wasp|wass')
 
     nonfiler['filer'] = 0
