@@ -216,7 +216,7 @@ class Returns(object):
         if record['a_age'] < 18:
             record['nu18'] += 1
         if 18 <= record['a_age'] < 21:
-            record['n1821'] += 0
+            record['n1821'] += 1
         if record['a_age'] >= 21:
             record['n21'] += 1
         depne = 0
